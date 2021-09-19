@@ -86,7 +86,6 @@ model <- lm(mpg ~ wt, data = mtcars)
 
 summary(model)
 model.matrix(model)
-
 ```
 1. extract $\hat{\beta}$, $Y$, $\hat{Y}$, $X$ and $\epsilon$ from __model__ (hint: have a look at the function __model.matrix__)  
     i. create a plot that illustrates $Y$ and $\hat{Y}$ (if you are feeling ambitious, also include $\epsilon$ (hint: you can use the function __arrows__))
@@ -96,20 +95,46 @@ model.matrix(model)
 
 ### Answers
 ```{r}
+###### 1.1 - extracting values and plotting ###### 
 b_hat = model$coefficients
-Y = mtcars$mpg
+y = mtcars$mpg
 X = cbind(1,mtcars$wt)
-Y_hat = X%*%b_hat
+y_hat = X%*%b_hat
+error = sigma(model)
 
-# note* type this directly in console 
-plot(X[,2], Y_hat, type = "b") # type = "b" gives me both the function line and points
-points(X[,2],Y)
+df <- tibble(x = mtcars$wt, y = mtcars$mpg, y_hat = y_hat)
 
+ggplot(data = df)+
+  geom_smooth(aes(x, y, color = "data")) + # A line fittet to actual data-points
+  geom_smooth(aes(x, y_hat, color = "model")) # The linear model based on points
+
+
+######  1.2 - extracking b_hat using OLS ###### 
+df$x2 <- df$x^2 # adding x^2 column to data-frame
+X2 <- cbind(1, x = df$x, x2 = df$x2) # creating design matrix for quadratic model
+
+b_hat2<- solve(t(X2)%*%X2)%*%t(X2)%*%y # extracting b_hat 
+b_hat2
+
+q_model <- lm(y ~ x + x2, data = df) # making a quadratic model using lm
+summary(q_model)  
+
+tibble(b_hat2, q_model$coefficients) # comparing coefficients extracted by hand with from lm-model
+
+
+######  1.3 Plotting q_model and model Y and Y-hat  ###### 
+
+# Finding Y_hat 
+y_hat2 <- X2%*%b_hat2
+
+df$y_hat2 <- y_hat2 # Adding the values to dataframe
+
+# Plotting Y against Y_hat for quadratic model
+ggplot(data = df)+
+  geom_smooth(aes(x, y, color = "data")) +
+  geom_smooth(aes(x, y_hat2, color = "model")) 
 
 ```
-
-
-
 
 ## Exercise 2
 Compare the plotted quadratic fit to the linear fit  
@@ -124,11 +149,115 @@ Compare the plotted quadratic fit to the linear fit
 ```{r, echo=FALSE}
 lm(mpg ~ 1, data=mtcars)
 ```
+
+# Exercise 2 answers 
+
+
+
+```{r}
+######  2.1 Comparing models ###### 
+# Linear model 
+ggplot(data = df)+
+  geom_smooth(aes(x, y, color = "data")) + 
+  geom_smooth(aes(x, y_hat, color = "model")) 
+
+# Quadratic model
+ggplot(data = df)+
+  geom_smooth(aes(x, y, color = "data")) +
+  geom_smooth(aes(x, y_hat2, color = "model")) 
+
+summary(model) # R^2 = 0.7446
+summary(q_model) # R^2 = 0.8066
+
+# The quadratic fit seems to fit more of the data, both looking at the plots and comparing R^2 values. The quadratic model explains 81% of variance and the linear model explains 74%.
+
+
+######  2.2 calculate the sum of squared errors: SSE = Σ(ŷi – yi)2 ###### 
+
+sse <- sum((y_hat - y)^2) # SSE for linear model
+sse_q <- sum((y_hat2 - y)^2) # SSE for quadratic model
+(sse-sse_q)/sse # difference in percentage
+# We see that the SSE value dropped with around 27% by making our model quadratic
+
+
+######  2.3 Cubic fits ###### 
+
+# We do that by cubing the predictor
+df$x3 <- df$x^3
+
+# Building the model
+c_model = lm(y ~ x3 + x2 + x, data = df)
+summary(c_model)
+
+# Adding y_hat to dataframe
+X3 <- model.matrix(c_model) # creating design matrix for cubic model
+y_hat3 <- X3%*%coef(c_model) # finding y_hat for cubic model
+df$y3 <- y_hat3
+
+# 2.3 i: Plotting cubic and quadratic models
+ggplot(data = df) +
+  geom_smooth(aes(x = x, y = y, colour = "Data"))+
+  geom_smooth(aes(x = x, y = y_hat2, colour = "Quad")) +
+  geom_smooth(aes(x = x, y = y_hat3, colour = "Cubic"))
+
+# 2.3 ii: Comparing SEE
+sse_cubic <- sum((y_hat3 - y)^2)
+sse_cubic
+# The SSE for the cubic model is SLIGHTY better than for the quadratic model 
+
+# 2.3 iii: Commenting on the estimated B_hat value 
+coef(c_model)[2] # x3 = 0.046
+# The fourth parameter in the cubic model (0.046) is very small, meaning that the cubic element adds very little information 
+```
+
 ## Exercise 3
 Doing a logistic regression - estimating the probability that a car has automatic transmission (0) or manual transmission (1) based on its weight
-```{r, eval=FALSE}
-data(mtcars)
-logistic.model <- glm(formula=..., data=..., family='binomial)
+```{r}
+logistic.model <- glm(am ~ wt, data = mtcars, family="binomial")
+summary(logistic.model)
+
+model.matrix(logistic.model)
+
+# Finding estimated values 
+fitted_values <- fitted(logistic.model)
+linear.predicters = inv.logit(logistic.model$coefficients[1] + logistic.model$coefficients[2]*mtcars$wt)
+# The fitted values and linera predictors are identical 
+
+
+# Plotting the logistic function
+df_log <- tibble(x = mtcars$wt, y = fitted_values)
+ggplot(df_log, aes(x, y)) +
+  geom_line(xlim = c(0, 7))
+
+# 3.2 i. interpreting the intercept
+
+boot::inv.logit(logistic.model$coefficients[1]) # First we take the inverse of the intercept value
+# This is .99
+# This means that if a car weighs 0 then the probability of it being manual gear is 99%
+
+# 3.2 ii. probability of the Pontiac Firebird has automatic transmission?
+# First we find the weight of the car
+mtcars %>% 
+  filter(row.names(mtcars) == "Pontiac Firebird") %>%
+  select(wt) # = 3.845
+
+# Then we multiply the weight with slope and add the intercept
+boot::inv.logit(logistic.model$coefficients[1] + 3.845*logistic.model$coefficients[2])
+# There's a 3.13 % probability that the Pontiac Firebird 
+
+# 3.3 quadratic fit
+mtcars$wt2 <- mtcars$wt^2 # adding the quadratic term to dataframe
+logistic.model_q <- glm(am ~ wt2 + wt, data = mtcars, family="binomial")
+summary(logistic.model_q)
+
+plot(mtcars$wt, logistic.model$coefficients[1] + logistic.model$coefficients[2]*mtcars$wt)
+plot(mtcars$wt, logistic.model_q$coefficients[1] + logistic.model_q$coefficients[2]*mtcars$wt2)
+
+
+
+# Comparing 
+AIC(logistic.model, logistic.model_q)
+  
 ```
 
 Probabilities live on the range $(0, 1)$ - using the so-called logit function as a "link-function" we can map these onto the range $(-\infty, \infty)$, i.e. the real numbers.  
