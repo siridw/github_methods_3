@@ -15,7 +15,7 @@ output:
 
 ```{r setup, include=FALSE}
 knitr::opts_chunk$set(echo = TRUE)
-pacman::p_load(tidyverse)
+pacman::p_load(tidyverse, generics)
 ```
 
 # 3) Brushing up on the General Linear Model 
@@ -169,7 +169,7 @@ ggplot(data = df) +
        Plot illustrating quadratic model (blue) and cubic model (red)")
 
 # 2.3 ii: Comparing SEE
-sse_c <- sum((y_hat3 - y)^2) # SSEE for cubic model is 203.67
+sse_c <- sum((y_hat3 - y)^2) 
 tibble(sse, sse_q, sse_c)
 
 # 2.3 iii: Commenting on the estimated B_hat value 
@@ -206,9 +206,7 @@ inv.logit <- function(x){exp(x) / (1 + exp(x))}
 ```
 
 __1. plot the fitted values for __logistic.model____ 
-__i. what is the relation between the linear.predictors and the fitted_values of the logistic.model object?__
-    
-    
+
 ```{r}
 # 3.1 - plot the fitted values for logistic.model
 fitted_values <- fitted(logistic.model) # defining fitted values 
@@ -218,13 +216,15 @@ plot(mtcars$wt, fitted_values)
 
 __Conclusion 3.1:__ 
 
-I'm honestly not really sure how to explain the relationship, hope you can help with that in class. :) 
+__i. what is the relation between the linear.predictors and the fitted_values of the logistic.model object?__
+Taking the inverse-logit of the linear predictors gives the probabilities. The logit function constrains the fitted values to line within (0,1), which helps to give a natural interpretation as the probability of the response actually being 1.
 
 
 __2. plot the logistic function, you've estimated based on your $\hat{\beta}$, (not just the fitted values).__
 __Use an _xlim_ of (0, 7)__
 ```{r}
-df_log <- tibble(x = mtcars$wt, y = fitted_values)
+linearpredictors <- inv.logit(logistic.model$coefficients[1]+logistic.model$coefficients[2]*mtcars$wt)
+df_log <- tibble(x = mtcars$wt, y = linearpredictors)
 
 ggplot(df_log, aes(x, y)) +
   geom_line(xlim = c(0, 7))
@@ -234,12 +234,15 @@ ggplot(df_log, aes(x, y)) +
 __i. what's the interpretation of the estimated $\hat{\beta}_0$ (the _Intercept_)__
 
 ```{r}
-boot::inv.logit(logistic.model$coefficients[1])
+# Getting my coefficients parameters
+tidy(logistic.model)
+boot::inv.logit(logistic.model$coefficients[1]) # Finding the actual probabilities
 ```
 
-When taking the inverse of the intercept value, we get .99. 
+The Intercept is 12.04 and when taking the inverse of the intercept value, we get .99. 
 
-This means that if a car weighs 0 then the probability of it being manual gear is 99%
+In theory this means that if a car weighs 0 then the probability of it being manual gear is 99%. 
+
 
 __ii. calculate the estimated probability that the Pontiac Firebird has automatic transmission, given its weight__
   
@@ -253,6 +256,8 @@ mtcars %>%
 # Then we multiply the weight with slope and add the intercept
 boot::inv.logit(logistic.model$coefficients[1] + 3.845*logistic.model$coefficients[2])
 ```
+
+
 There's a 3.13 % probability that the Pontiac Firebird has automatic transmission given its weight
 
 
@@ -267,11 +272,6 @@ __3. plot quadratic fit alongside linear fit__
 mtcars$wt2 <- mtcars$wt^2 # adding the quadratic term to dataframe
 logistic.model_q <- glm(am ~ wt2 + wt, data = mtcars, family="binomial") # Making the quadratic logistic model
 
-plot(mtcars$wt, logistic.model$coefficients[1] + logistic.model$coefficients[2]*mtcars$wt)
-plot(mtcars$wt, logistic.model_q$coefficients[1] + logistic.model_q$coefficients[2]*mtcars$wt2)
-
-
-
 # Comparing the logistic model to the quadratic logistic model
 AIC(logistic.model, logistic.model_q)
   
@@ -280,7 +280,7 @@ AIC(logistic.model, logistic.model_q)
 __Conclusion 3.3:__ 
 
 
-
+According to the AIC values the model *without* the quadratic term (AIC = 23.18) is better than the one with it (AIC = 25.12).
 
     
 # Next time
