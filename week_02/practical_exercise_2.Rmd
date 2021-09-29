@@ -1,7 +1,7 @@
 ---
 title: "practical_exercise_2, Methods 3, 2021, autumn semester"
-author: '[FILL IN YOUR NAME]'
-date: "[FILL IN THE DATE]"
+author: 'Sirid Wihlborg'
+date: "29/09/21"
 output: pdf_document
 ---
 
@@ -96,8 +96,8 @@ You can install it using `install.packages("lme4")` and load it using `library(l
 `lmer` is used for multilevel modelling
 
 ```{r, eval=FALSE}
-mixed.model <- lmer(formula=..., data=...)
-example.formula <- formula(dep.variable ~ first.level.variable + (1 | second.level.variable))
+#mixed.model <- lmer(formula=..., data=...)
+#example.formula <- formula(dep.variable ~ first.level.variable + (1 | second.level.variable))
 ```
 
 1) Build four models and do some comparisons
@@ -113,12 +113,6 @@ m4 <- lmer(f0mn ~ gender + (1|scenario) + (1|subject), data = politeness, REML =
 ```
     v. which of the models has the lowest residual standard deviation, also compare the Akaike Information Criterion `AIC`?
 ```{r}
-# Finding sum of residual variance
-tibble(sum(residuals(m1)^2),
-       sum(residuals(m2)^2),
-       sum(residuals(m3)^2),
-       sum(residuals(m4)^2))
-
 # Finding residual standard deviation 
 tibble(sigma(m1), sigma(m2), sigma(m3), sigma(m4))
 
@@ -131,33 +125,29 @@ The fourth model: a two-level model that models intercepts for both _scenario_ a
 
     vi. which of the second-level effects explains the most variance?
 ```{r}
-#pacman::p_load(MuMIn) # A package for finding pseudo R^2 in mixed effect models
-
-#r.squaredGLMM(m2)
-#r.squaredGLMM(m3)
-#r.squaredGLMM(m4)
-
 anova(m2, m1, m3, m4) # note for self* rememmber to put an lme4 model as the first model, otherwise the anova-function doens't work
 ```
 
 
 2) Why is our single-level model bad?
 
-Because we have some systemacy in our error term (like subject and gender) which drastically helps our model to explain the fixed effects. 
+Because we have some systemacy in our error term (like subject and gender) so putting these as random effects drastically helps our model to "make sense" of the noise.  
 
     i. create a new data frame that has three variables, _subject_, _gender_ and _f0mn_, where _f0mn_ is the average of all responses of each subject, i.e. averaging across _attitude_ and_scenario_
   
-```{r}
+```{r message=FALSE, warning=FALSE}
 politeness2 <- politeness %>% 
   group_by(subject, gender) %>% 
-  summarise(mean(f0mn))
+  summarise(mean_pitch = mean(f0mn))
+
+head(politeness2)
 ```
 
   
     ii. build a single-level model that models _f0mn_ as dependent on _gender_ using this new dataset
     
 ```{r}
-m5 <- lm(`mean(f0mn)` ~ gender, data = politeness2)
+m5 <- lm(mean_pitch ~ gender, data = politeness2)
 ```
 
 
@@ -165,12 +155,16 @@ m5 <- lm(`mean(f0mn)` ~ gender, data = politeness2)
     
 
 ```{r}
-qqPlot(m1)
-qqPlot(m5)
+qqPlot(m1) # Plot using all pitch scores pr. participant 
+qqPlot(m5) # Plot using the averaged pitch score pr. participant 
 ```
 
 
     iv. Also make a quantile-quantile plot for the residuals of the  multilevel model with two intercepts. Does it look alright?  
+
+```{r}
+qqPlot(m4)
+```
 
 
 3) Plotting the two-intercepts model
@@ -178,15 +172,10 @@ qqPlot(m5)
 
 
 ```{r}
-summary(m4)
-grand_ef <- fixef(m4)
-grand_ef
-
 ggplot(data = politeness, aes(x = scenario, y = f0mn, color = attitude)) +
   geom_point() + 
-  geom_abline(intercept = grand_ef[1], slope = grand_ef[2]) +
+  geom_point(aes(x = scenario, y = fitted(m4), color = "fitted")) + # adding the fitted values pr. subject pr. scenario
   facet_wrap(~subject)
-
 ```
 
     
@@ -217,9 +206,9 @@ summary(m7)
 
 
 ```{r}
-m4 # f0mn ~ gender + (1 | scenario) + (1 | subject)
-m6 # f0mn ~ gender + attitude + (1 | scenario) + (1 | subject)
-m7 # f0mn ~ gender * attitude + (1 | scenario) + (1 | subject)
+# m4: f0mn ~ gender + (1 | scenario) + (1 | subject)
+# m6:  f0mn ~ gender + attitude + (1 | scenario) + (1 | subject)
+# m7: f0mn ~ gender * attitude + (1 | scenario) + (1 | subject)
 
 # Finding sum of residual variance
 tibble(sum(residuals(m4)^2),
@@ -241,8 +230,16 @@ AIC(m4, m6, m7)
   iv. describe the variance components of the second level (if any)  
   v. include a Quantile-Quantile plot of your chosen model  
 
+Generally, when choosing my model I would probably never primarily choose the model given what's describing the data best, but rather what makes sense given my hypothesis and assumption. So, for example if my hypothesis explicitly investigated the effect of the formality in a given context on pitch, I would for sure want "attitude" (the formal/informal condition) as a fixed effect, thereby excluding m4 (f0mn ~ gender + (1 | scenario) + (1 | subject)).
+
+Subject and scenario has been set as random intercepts as I expect different baseline pitch for each participant and different effect on pitch for each scenario. 
+
 ```{r}
-m8 <- lmer(f0mn ~ gender * attitude + (attitude | scenario) + (attitude | subject), data = politeness, REML = FALSE)
+summary(m4)
+summary(m6)
+summary(m7)
+
+qqPlot(m7)
 ```
 
 
