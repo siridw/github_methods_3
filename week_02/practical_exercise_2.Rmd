@@ -27,7 +27,6 @@ The dataset has been shared on GitHub, so make sure that the csv-file is on your
 ```{r}
 politeness <- read.csv('politeness.csv') ## read in data
 politeness <- na.omit(politeness)
-pacman::p_load(tidyverse, lme4, car,lmerTest)
 ```
 
 # Exercises and objectives
