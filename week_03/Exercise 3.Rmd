@@ -95,7 +95,7 @@ ggplot(data = df_staircase) +
 
     v. in your own words, describe how the partial pooling model allows for a better fit for each subject  
 
-Since people are different and have different cognitive abilities, they will often perform very different in tasks including tasks in experimental settings. If you take the average performance and/or effect to represent every subject, you are bound to the failure that some participants will be way above and/or below average, which is clearly illustrated in the plot above. By making a mixed effect model (partial pooling) we tell the model that different people have different performance and because the model "knows" this, it's much better at giving the correct fit to each participant.
+Since people are different and have different cognitive abilities, they will often perform very different in tasks including tasks in experimental settings. If you take the average performance and/or effect to represent every subject, you are bound to the failure that some participants will be way above and/or below average, which is clearly illustrated in the plot above. By making a mixed effect model (partial pooling) we tell the model that different people have different performances and because the model "knows" this, it's much better at giving the correct fit to each participant.
 
 ## Exercise 2
 
@@ -212,6 +212,8 @@ I see that adding 'task' as random intercept explains '0' variance, which is why
 data.count <- df %>% 
   group_by(subject, task, pas) %>% 
   dplyr::summarise("count" = n())
+
+data.count$pas <- as.factor(data.count$pas)
 ```        
 
 2) Now fit a multilevel model that models a unique "slope" for _pas_ for each _subject_ with the interaction between _pas_ and _task_ and their main effects being modelled  
@@ -227,11 +229,14 @@ Poisson. Since we're dealing with 'counts' over a series of time.
 
     ii. why is a slope for _pas_ not really being modelled?  
 
+```{r}
+ranef(m13)
+```
 
     iii. if you get a convergence error, try another algorithm (the default is the _Nelder_Mead_) - try (_bobyqa_) for which the `dfoptim` package is needed. In `glmer`, you can add the following for the `control` argument: `glmerControl(optimizer="bobyqa")` (if you are interested, also have a look at the function `allFit`)
 
 ```{r}
-m13 <- glmer(count ~ pas * task + (pas|subject), data = data.count, family = poisson, control = glmerControl(optimizer="bobyqa")) 
+m13 <- glmer(count ~ pas * task + (pas|subject), data = data.count, family = poisson, control = glmerControl(optimizer="bobyqa"))
 ```
 
     iv. when you have a converging fit - fit a model with only the main effects of _pas_ and _task_. Compare this with the model that also includes the interaction  
@@ -239,12 +244,14 @@ m13 <- glmer(count ~ pas * task + (pas|subject), data = data.count, family = poi
 ```{r}
 m14 <- glmer(count ~ pas + task + (pas|subject), data = data.count, family = poisson, control = glmerControl(optimizer="bobyqa")) 
 
-# Finding sum of residual variance
-tibble(sum(residuals(m13)^2),
-       sum(residuals(m14)^2))
+# Finding sum of residual variance SSR
+resid_var <- c(sum(residuals(m13)^2),sum(residuals(m14)^2))
 
 # Comparing AIC
-AIC(m13, m14)
+aic <- AIC(m13, m14)
+
+text <- c("m13", "m14")
+as.tibble(cbind(text, resid_var, aic))
 ```
 
 When comparing the two models, I can conclude that the interaction-model (m13) both has lower sum of residual variance (SSR) and a lower AIC value, hence including the interaction makes my model substantially better.
@@ -257,7 +264,9 @@ However, on a more conceptual note, I would depend on my theoretical background 
     vi. based on your chosen model - write a short report on what this says about the distribution of ratings as dependent on _pas_ and _task_  
 
 
+
     vii. include a plot that shows the estimated amount of ratings for four subjects of your choosing 
+  
 
 ```{r}
 data.count_four <- data.count %>% 
@@ -272,6 +281,7 @@ data.count_four %>%
       facet_wrap( ~ subject)
 ```
 
+## Obs update since handed in: Use the full model (m13), and find the specific slopes and intercepts for the 4 participants which you plot
 
 3) Finally, fit a multilevel model that models _correct_ as dependent on _task_ with a unique intercept for each _subject_  
 
@@ -301,17 +311,25 @@ m17 <- lme4::glmer(correct ~ pas + (1|subject), data = df, family = binomial)
     iv. finally, fit a model that models the interaction between _task_ and _pas_  and their main effects  
 
 ```{r}
+df$pas <- as.factor(df$pas)
 m18 <-lme4::glmer(correct ~ pas * task + (1|subject), data = df, family = binomial)
+summary(m18)
 ```
 
 
     v. describe in your words which model is the best in explaining the variance in accuracy 
   
 ```{r}
-AIC(m15, m16, m17, m18)
+m_null <- glm(correct ~ 1, data = df, family = binomial)
+summary(m_null)
+
+AIC(m_null, m15, m16, m17, m18)
+
+summary(m18)
 ```
  
 Only model 15 and 17 have significance for all predictors. When comparing AIC values, I see that model 17 have a quite substantially lower value compared to model 15. This means that this model has the best balance between complexity and explanatory power.
- 
+
+### Obs update since handed in: Explained variance is R^2 - how do I optain this?
 
 
