@@ -13,7 +13,7 @@ output: pdf_document
 
 ```{r setup, include=FALSE}
 knitr::opts_chunk$set(echo = TRUE)
-pacman::p_load(tidyverse, plyr, lme4, lmerTest, EnvStats, rstanarm)
+pacman::p_load(tidyverse, plyr, lme4, lmerTest, EnvStats, rstanarm, interactions)
 ```
 
 # Exercises and objectives
@@ -185,10 +185,45 @@ m_pas_inter <- glmer(correct ~ target.frames * pas + (target.frames|subject), fa
 anova(m_target, m_pas, m_pas_inter)
 ```
 
+I compared the model with pas as fixed effect and another model including the interaction between pas and target.frames to a model with only target.frames as fixed effect. 
+
+I found that the model including the interaction effect between pas and target.frames is significantly a better model ($$\chi^2(3) = 379.58,  p < 0.00001$$).
 
 
     i. if your model doesn't converge, try a different optimizer  
-    ii. plot the estimated group-level functions over `xlim=c(0, 8)` for each of the four PAS-ratings - add this plot to your report (see: 5.2.i) and add a description of your chosen model. Describe how _pas_ affects accuracy together with target duration if at all. Also comment on the estimated functions' behaviour at target.frame=0 - is that behaviour reasonable?  
+
+It did converge.
+
+    ii. plot the estimated group-level functions over `xlim=c(0, 8)` for each of the four PAS-ratings - add this plot to your report (see: 5.2.i) and add a description of your chosen model. Describe how _pas_ affects accuracy together with target duration if at all. Also comment on the estimated functions' behaviour at target.frame=0 - is that behaviour reasonable?
+
+```{r}
+m_pas_inter <- glmer(correct ~ target.frames * pas + (target.frames|subject), family = binomial, data = df)
+
+df %>% 
+  ggplot() + 
+  geom_point(aes(x = target.frames, y = fitted(m_pas_inter), color = pas))+
+  facet_wrap( ~ pas) +
+  labs(title = "Estimated accurary dependent on target duration and PAS") +
+  labs(x = "Target duration (target.frames)", y = "Estimated group-level function") + 
+  theme_bw()
+```
+
+
+```{r}
+interactions::interact_plot(model = m_pas_inter, pred = "target.frames", modx = "pas") # visualizing the effects of pas and targetframes and their interactions
+
+coef(summary(m_pas_inter))
+
+estimates <- c(coef(summary(m_pas_inter))[1:8])
+increase_in_prob <- c(invlogit(estimates))
+estimates_text <- c("intercept", "target.frames", "pas2", "pas3", "pas4", "target.frames:pas2", "target.frames:pas3", "target.frames:pas4")
+
+# table showing 
+as.tibble(cbind(estimates_text, increase_in_prob))
+```
+
+
+
 
 # EXERCISE 6 - Test linear hypotheses
 
