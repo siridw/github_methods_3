@@ -14,6 +14,7 @@ output: pdf_document
 ```{r setup, include=FALSE}
 knitr::opts_chunk$set(echo = TRUE)
 pacman::p_load(tidyverse, plyr, lme4, lmerTest, EnvStats, rstanarm, interactions)
+pacman::p_load(multcomp) # for finding interactions in e.g.  2:3
 ```
 
 # Exercises and objectives
@@ -142,7 +143,7 @@ m_target <- glmer(correct ~ 1 + target.frames + (target.frames|subject), family 
 m_target_no_cor <- glmer(correct ~ 1 + target.frames + (target.frames||subject), family = binomial, data = df)
 
 model_text <- c("m_null", "m_ranint", "m_ranslope", "m_target_no_cor", "m_target")
-logLik_values <- anova(m_ranint, m_null, m_ranslope, m_fix, m_fix_no_cor)$logLik
+logLik_values <- anova(m_ranint, m_null, m_ranslope, m_target, m_target_no_cor)$logLik
 
 as.tibble(cbind(model_text, logLik_values))
 ```
@@ -212,17 +213,20 @@ df %>%
 ```{r}
 interactions::interact_plot(model = m_pas_inter, pred = "target.frames", modx = "pas") # visualizing the effects of pas and targetframes and their interactions
 
-coef(summary(m_pas_inter))
 
+# creating a table showing the percentile increase in accuracy for every fixed effect and interactions
 estimates <- c(coef(summary(m_pas_inter))[1:8])
 increase_in_prob <- c(invlogit(estimates))
 estimates_text <- c("intercept", "target.frames", "pas2", "pas3", "pas4", "target.frames:pas2", "target.frames:pas3", "target.frames:pas4")
 
-# table showing 
 as.tibble(cbind(estimates_text, increase_in_prob))
 ```
 
+From the plot I can quickly see that increase in target duration and PAS will increase accuracy. There's a big difference when going from pas1 to the other ratings on the pas-scales.
 
+Having pas1 as baseline there's a 36% increase in accuracy going to pas2, 37% increase to pas3 and 55% increase when going to pas4. The effect of target.frames is 60% increased on accuracy when pas changes from 1 to 2. The effect of target.frames is 68% increased on accuracy when pas changes from 1 to 3 and from 1 to 4.
+
+We see an 47% accuracy when target.frames is 0 (baseline value) which make sense because this means that performance drop to under chance level when target-duration hypothetically is 0. 
 
 
 # EXERCISE 6 - Test linear hypotheses
@@ -232,6 +236,9 @@ We want to test a hypothesis for each of the three neighbouring differences in P
 
 1) Fit a model based on the following formula: `correct ~ pas * target.frames + (target.frames | subject))`
     i. First, use `summary` (yes, you are allowed to!) to argue that accuracy increases faster with objective evidence for PAS 2 than for PAS 1. 
+
+This is done in 5.2.ii.
+
 2) `summary` won't allow you to test whether accuracy increases faster with objective evidence for PAS 3 than for PAS 2 (unless you use `relevel`, which you are not allowed to in this exercise). Instead, we'll be using the function `glht` from the `multcomp` package
     i. To redo the test in 6.1.i, you can create a _contrast_ vector. This vector will have the length of the number of estimated group-level effects and any specific contrast you can think of can be specified using this. For redoing the test from 6.1.i, the code snippet below will do
     ii. Now test the hypothesis that accuracy increases faster with objective evidence for PAS 3 than for PAS 2.
@@ -242,14 +249,37 @@ We want to test a hypothesis for each of the three neighbouring differences in P
 ```{r, eval=FALSE}
 ## testing whether PAS 2 is different from PAS 1
 contrast.vector <- matrix(c(0, 0, 0, 0, 0, 1, 0, 0), nrow=1)
-gh <- glht(pas.intact.tf.ranslopeint.with.corr, contrast.vector)
-print(summary(gh))
+gh_1 <- glht(m_pas_inter, contrast.vector)
+print(summary(gh_1))
+invlogit(coef(summary(gh_1))) # finding increase in percentile
+
 ## as another example, we could also test whether there is a difference in
 ## intercepts between PAS 2 and PAS 3
 contrast.vector <- matrix(c(0, -1, 1, 0, 0, 0, 0, 0), nrow=1)
-gh <- glht(pas.intact.tf.ranslopeint.with.corr, contrast.vector)
-print(summary(gh))
+gh_2 <- glht(m_pas_inter, contrast.vector)
+print(summary(gh_2))
+
+
+# testing if accuracy performance increases faster for pas3 than pas2
+contrast.vector <- matrix(c(0, -1, 0, 1, 0, 0, 0, 0), nrow=1)
+gh_3 <- glht(m_pas_inter, contrast.vector)
+print(summary(gh_3))
+invlogit(coef(summary(gh))) 
+
+# testing if accuracy performance increases faster for pas4 than pas3
+contrast.vector <- matrix(c(0, -1, 0, 0, 1, 0, 0, 0), nrow=1)
+gh_4 <- glht(m_pas_inter, contrast.vector)
+print(summary(gh_4))
+invlogit(coef(summary(gh_4)))
 ```
+
+
+We see that there's a 34% increase in accuracy when going from pas2 to pas3 hence wwe fail to reject the null-hypothesis that there's not a faster increase in accuracy when going from pas2 to pas3.
+
+There's a 52% increase when going from pas3 to pas4.
+
+
+Since the increase from pas1 to pas2 is 60.9% and only 52% from pas3 to pas4, I conclude that the first increase is greater.
 
 # EXERCISE 7 - Estimate psychometric functions for the Perceptual Awareness Scale and evaluate them  
 
