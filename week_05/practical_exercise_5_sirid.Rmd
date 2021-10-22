@@ -274,7 +274,7 @@ invlogit(coef(summary(gh_4)))
 ```
 
 
-We see that there's a 34% increase in accuracy when going from pas2 to pas3 hence wwe fail to reject the null-hypothesis that there's not a faster increase in accuracy when going from pas2 to pas3.
+We see that there's a 34% increase in accuracy when going from pas2 to pas3 hence we fail to reject the null-hypothesis that there's not a faster increase in accuracy when going from pas2 to pas3.
 
 There's a 52% increase when going from pas3 to pas4.
 
@@ -296,10 +296,16 @@ RSS <- function(dataset, par)
     ## and y (correct)
     
     ## "par" are our four parameters (a numeric vector) 
-    ## par[1]=a, par[2]=b, par[3]=c, par[4]=d
+    a = par[1] 
+    b = par[2]
+    c = par[3] 
+    d = par[4]
+    
     x <- dataset$x
     y <- dataset$y
-    y.hat <- ## you fill in the estimate of y.hat
+    
+    y.hat <- a + ((b-a)/(1+exp(1)^((c-x)/d))) 
+    
     RSS <- sum((y - y.hat)^2)
     return(RSS)
 }
@@ -313,7 +319,46 @@ RSS <- function(dataset, par)
     `method`: 'L-BFGS-B'  
     `lower`: lower bounds for the four parameters, (the lowest value they can take), you can set _c_ and _d_ as `-Inf`. Find good choices for _a_ and _b_ yourself (and argue why they are appropriate)  
     `upper`: upper bounds for the four parameters, (the highest value they can take) can set _c_ and _d_ as `Inf`. Find good choices for _a_ and _b_ yourself (and argue why they are appropriate)    
+
+
+```{r}
+df_007 <- df %>% 
+  dplyr::filter(subject == "007") %>% 
+  dplyr::select(target.frames, correct) %>% 
+  dplyr::rename(x = target.frames, y = correct)
+
+par <- c(0.5, 0.8, 1, 1)
+
+optim_007 <- optim(data = df_007, fn = RSS, par = par, method = 'L-BFGS-B', lower = c(0, 0, -Inf, -Inf), upper = c(1, 1, Inf, Inf))
+```
+
+Argument for par = (0.5, 0.8, 1, 1):
+I thought that the lowest accuracy-level (a) should be 50% since this is chance level. The most likely 'best accuracy' (b) is maybe 0.8, 80% seems accuracy reasonable. 
+Since the function is sigmoid, the lower bound (lower =) is set to 0 and upper (upper =) to 1.
+
+Results: We got the following suggestions for the estimated parameters.
+a = 0.38.
+b = 0.98.
+c = 2.23.
+d = 0.63. 
+
+Optim-function gives us a lowest accuracy on 38% and highest 98%. I would think it's a bit extreme, and doesn't really solve the problem of us wanting a 50% lowest accuracy-level.
+c = 2.23, which would mean that the function is most steep (ie. the highest increase in accuracy) when you go from pas 2 to pas 3.
+The steepness at the inflexion point is d = 0.63 #you said we should make the lower bound -Inf, but you say "when it goes towards 0", what is in fact the lower bound?#
+
     ii. Plot the fits for the PAS ratings on a single plot (for subject 7) `xlim=c(0, 8)`
+
+```{r}
+sigmoid_function_007 <- function(x) {
+  optim_007$par[1] + ((optim_007$par[2]-optim_007$par[1])/(1+exp(1)^((optim_007$par[3]-x)/optim_007$par[4])))}
+
+ggplot() +
+  geom_point(aes(x = c(1:4), y = sigmoid_function_007(1:4))) +
+  labs(title = "Estimated fits for PAS ratings")
+```
+
+
+
     iii. Create a similar plot for the PAS ratings on a single plot (for subject 7), but this time based on the model from 6.1 `xlim=c(0, 8)`   
     iv. Comment on the differences between the fits - mention some advantages and disadvantages of each way  
 2) Finally, estimate the parameters for all subjects and each of their four PAS ratings. Then plot the estimated function at the group-level by taking the mean for each of the four parameters, _a_, _b_, _c_ and _d_ across subjects. A function should be estimated for each PAS-rating (it should look somewhat similar to Fig. 3 from the article:  https://doi.org/10.1016/j.concog.2019.03.007)
