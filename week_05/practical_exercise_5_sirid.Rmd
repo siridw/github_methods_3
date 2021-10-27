@@ -406,27 +406,85 @@ A crucial difference: the fitted values using the "by-hand-function" is only bas
 
 ```{r}
 # now we do exactly the same but for all subjects
+## we start by working in a new dataframe to not fuck up the old one
 
-# rename target.frames as x and correct as y
-df <- df %>% 
-  mutate(x = target.frames, y = correct)
+df_new <- df
 
-# finding optimal parameters using optim-function
-optim_all <- optim(data = df, fn = RSS, par = par, method = 'L-BFGS-B', lower = c(0, 0, -Inf, -Inf), upper = c(1, 1, Inf, Inf))
-optim_all
+# selecting and renaming variables
+df_new <- df_new %>% 
+  mutate(x = target.frames, y = correct) %>% 
+  dplyr::select(subject,x,y,pas)
 
-# using these suggested parameters in the sigmoid function
-sigmoid_function <- function(x) {
-  optim_all$par[1] + ((optim_all$par[2]-optim_all$par[1])/(1+exp(1)^((optim_all$par[3]-x)/optim_all$par[4])))}
+df_pas1 <- df_new %>% 
+  filter(pas == "1")
 
-# adding the y_hats to the data-frame
-df$y_hat <- sigmoid_function(df$x)
+########### create the function ##########
 
-# plotting the y_hat
-df %>% 
+for (subject in df_new) {
+  
+  optim_pas1 <- optim(data = filter(df_new, pas == "1"), fn = RSS, par = par, method = 'L-BFGS-B', lower = c(0, 0, -Inf, -Inf), upper = c(1, 1, Inf, Inf))
+  optim_pas2 <- optim(data = filter(df_new, pas == "2"), fn = RSS, par = par, method = 'L-BFGS-B', lower = c(0, 0, -Inf, -Inf), upper = c(1, 1, Inf, Inf))
+  optim_pas3 <- optim(data = filter(df_new, pas == "3"), fn = RSS, par = par, method = 'L-BFGS-B', lower = c(0, 0, -Inf, -Inf), upper = c(1, 1, Inf, Inf))
+  optim_pas4 <- optim(data = filter(df_new, pas == "4"), fn = RSS, par = par, method = 'L-BFGS-B', lower = c(0, 0, -Inf, -Inf), upper = c(1, 1, Inf, Inf))
+  
+  df_new$y_hat_pas1_all <- sigmoid_function(optim_pas1,df_new$x)
+  df_new$y_hat_pas2_all <- sigmoid_function(optim_pas2,df_new$x)
+  df_new$y_hat_pas3_all <- sigmoid_function(optim_pas3,df_new$x)
+  df_new$y_hat_pas4_all <- sigmoid_function(optim_pas4,df_new$x)
+  
+}
+
+# running my funtion more times gives hella lotta columns
+df_new <- df_new %>% 
+  dplyr::select(subject, x, y, pas, y_hat_pas1_all, y_hat_pas2_all, y_hat_pas3_all, y_hat_pas4_all)
+
+################### plotting this thing ##################
+
+
+df_new_target.1 <- df_new %>% 
+  filter(x == 1) %>% 
+  group_by(pas) %>% 
+  summarise(mean(y_hat_pas1_all), mean(y_hat_pas2_all), mean(y_hat_pas3_all), mean(y_hat_pas4_all))
+
+df_new_target.2 <- df_new %>% 
+  filter(x == 2) %>% 
+  group_by(pas) %>% 
+  summarise(mean(y_hat_pas1_all), mean(y_hat_pas2_all), mean(y_hat_pas3_all), mean(y_hat_pas4_all))
+
+df_new_target.3 <- df_new %>% 
+  filter(x == 3) %>% 
+  group_by(pas) %>% 
+  summarise(mean(y_hat_pas1_all), mean(y_hat_pas2_all), mean(y_hat_pas3_all), mean(y_hat_pas4_all))
+
+df_new_target.4 <- df_new %>% 
+  filter(x == 4) %>% 
+  group_by(pas) %>% 
+  summarise(mean(y_hat_pas1_all), mean(y_hat_pas2_all), mean(y_hat_pas3_all), mean(y_hat_pas4_all))
+
+df_new_target.5 <- df_new %>% 
+  filter(x == 5) %>% 
+  group_by(pas) %>% 
+  summarise(mean(y_hat_pas1_all), mean(y_hat_pas2_all), mean(y_hat_pas3_all), mean(y_hat_pas4_all))
+
+df_new_target.6 <- df_new %>% 
+  filter(x == 6) %>% 
+  group_by(pas) %>% 
+  summarise(mean(y_hat_pas1_all), mean(y_hat_pas2_all), mean(y_hat_pas3_all), mean(y_hat_pas4_all))
+
+df_mean <- as.data.frame(rbind(df_new_target.1, df_new_target.2, df_new_target.3, df_new_target.4, df_new_target.5, df_new_target.6))
+
+df_mean$`mean(y_hat_pas1_all)`
+# plotting
+df_mean %>% 
   ggplot() + 
-   geom_point(aes(x = x, y = y_hat)) +
-   facet_wrap(~pas)
+  geom_smooth(aes(x = 1:6, y = `mean(y_hat_pas1_all)`, color = "pas1")) + 
+  geom_smooth(aes(x = 1:6, y = `mean(y_hat_pas2_all)`, color = "pas2")) + 
+  geom_smooth(aes(x = 1:6, y = `mean(y_hat_pas3_all)`, color = "pas3")) + 
+  geom_smooth(aes(x = 1:6, y = `mean(y_hat_pas4_all)`, color = "pas4")) +
+  labs(title = "Estimated fits for accuracy ratings pr. PAS for ALL subjects",
+       x = "Target.Frames",
+       y = "Estimated accuracy ratings using sigmoid-function") +
+  theme_bw() 
 ```
 
 
