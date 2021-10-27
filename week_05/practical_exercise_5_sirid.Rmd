@@ -39,7 +39,7 @@ The data is associated with Experiment 1 of the article at the following DOI htt
     ii. Remove the practice trials from the dataset (see the _trial.type_ variable)  
     iii. Create a _correct_ variable  
     iv. Describe how the _target.contrast_ and _target.frames_ variables differ compared to the data from part 1 of this assignment  
-```{r}
+```{r, message = FALSE}
 list <- list.files(path = "data/experiment_1", pattern = "*.csv", full.names=TRUE) # importing all files in a list
 df <- ldply(list, read_csv) # making them into one data-frame
 
@@ -404,7 +404,7 @@ A crucial difference: the fitted values using the "by-hand-function" is only bas
 2) Finally, estimate the parameters for all subjects and each of their four PAS ratings. Then plot the estimated function at the group-level by taking the mean for each of the four parameters, _a_, _b_, _c_ and _d_ across subjects. A function should be estimated for each PAS-rating (it should look somewhat similar to Fig. 3 from the article:  https://doi.org/10.1016/j.concog.2019.03.007)
     i. compare with the figure you made in 5.3.ii and comment on the differences between the fits - mention some advantages and disadvantages of both.
 
-```{r}
+```{r, warning = FALSE, message = FALSE}
 # now we do exactly the same but for all subjects
 ## we start by working in a new dataframe to not fuck up the old one
 
@@ -418,7 +418,7 @@ df_new <- df_new %>%
 df_pas1 <- df_new %>% 
   filter(pas == "1")
 
-########### create the function ##########
+########### creating sa function ##########
 
 for (subject in df_new) {
   
@@ -434,11 +434,11 @@ for (subject in df_new) {
   
 }
 
-# running my funtion more times gives hella lotta columns
+# running my funtion more times gives hella lotta columns, hence:
 df_new <- df_new %>% 
   dplyr::select(subject, x, y, pas, y_hat_pas1_all, y_hat_pas2_all, y_hat_pas3_all, y_hat_pas4_all)
 
-################### plotting this thing ##################
+################### plotting this thang ##################
 
 
 df_new_target.1 <- df_new %>% 
@@ -473,7 +473,6 @@ df_new_target.6 <- df_new %>%
 
 df_mean <- as.data.frame(rbind(df_new_target.1, df_new_target.2, df_new_target.3, df_new_target.4, df_new_target.5, df_new_target.6))
 
-df_mean$`mean(y_hat_pas1_all)`
 # plotting
 df_mean %>% 
   ggplot() + 
