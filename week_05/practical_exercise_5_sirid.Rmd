@@ -248,37 +248,31 @@ This is done in 5.2.ii.
 ```{r, eval=FALSE}
 ## testing whether PAS 2 is different from PAS 1
 contrast.vector <- matrix(c(0, 0, 0, 0, 0, 1, 0, 0), nrow=1)
-gh_1 <- glht(m_pas_inter, contrast.vector)
+gh_1 <- glht(m_target.pas.interact, contrast.vector)
 print(summary(gh_1))
 invlogit(coef(summary(gh_1))) # finding increase in percentile
 
 ## as another example, we could also test whether there is a difference in
 ## intercepts between PAS 2 and PAS 3
 contrast.vector <- matrix(c(0, -1, 1, 0, 0, 0, 0, 0), nrow=1)
-gh_2 <- glht(m_pas_inter, contrast.vector)
+gh_2 <- glht(m_target.pas.interact, contrast.vector)
 print(summary(gh_2))
 
 
 # testing if accuracy performance increases faster for pas3 than pas2
-contrast.vector <- matrix(c(0, -1, 0, 1, 0, 0, 0, 0), nrow=1)
-gh_3 <- glht(m_pas_inter, contrast.vector)
+contrast.vector <- matrix(c(0, 0, 0, 0, 0, -1, 1, 0), nrow=1)
+gh_3 <- glht(m_target.pas.interact, contrast.vector)
 print(summary(gh_3))
-invlogit(coef(summary(gh))) 
 
 # testing if accuracy performance increases faster for pas4 than pas3
-contrast.vector <- matrix(c(0, -1, 0, 0, 1, 0, 0, 0), nrow=1)
-gh_4 <- glht(m_pas_inter, contrast.vector)
+contrast.vector <- matrix(c(0, 0, 0, 0, 0, 0, -1, 1), nrow=1)
+gh_4 <- glht(m_target.pas.interact, contrast.vector)
 print(summary(gh_4))
-invlogit(coef(summary(gh_4)))
 ```
 
 
-We see that there's a 34% increase in accuracy when going from pas2 to pas3 hence we fail to reject the null-hypothesis that there's not a faster increase in accuracy when going from pas2 to pas3.
-
-There's a 52% increase when going from pas3 to pas4.
 
 
-Since the increase from pas1 to pas2 is 60.9% and only 52% from pas3 to pas4, I conclude that the first increase is greater.
 
 # EXERCISE 7 - Estimate psychometric functions for the Perceptual Awareness Scale and evaluate them  
 
@@ -288,7 +282,7 @@ It has four parameters: _a_, which can be interpreted as the minimum accuracy le
   
 We can define a function of a residual sum of squares as below
 
-```{r, eval=FALSE}
+```{r}
 RSS <- function(dataset, par)
 {
     ## "dataset" should be a data.frame containing the variables x (target.frames)
@@ -323,16 +317,19 @@ RSS <- function(dataset, par)
 ```{r}
 df_007 <- df %>% 
   dplyr::filter(subject == "007") %>% 
-  dplyr::select(target.frames, correct) %>% 
+  dplyr::select(target.frames, correct, pas) %>% 
   dplyr::rename(x = target.frames, y = correct)
 
-par <- c(0.5, 0.8, 1, 1)
+par <- c(0.5, 1, 1, 1)
 
-optim_007 <- optim(data = df_007, fn = RSS, par = par, method = 'L-BFGS-B', lower = c(0, 0, -Inf, -Inf), upper = c(1, 1, Inf, Inf))
+optim_007_pas1 <- optim(data = filter(df_007, pas == 1), fn = RSS, par = par, method = 'L-BFGS-B', lower = c(0, 0, -Inf, -Inf), upper = c(1, 1, Inf, Inf))
+optim_007_pas2 <- optim(data = filter(df_007, pas == 2), fn = RSS, par = par, method = 'L-BFGS-B', lower = c(0, 0, -Inf, -Inf), upper = c(1, 1, Inf, Inf))
+optim_007_pas3 <- optim(data = filter(df_007, pas == 3), fn = RSS, par = par, method = 'L-BFGS-B', lower = c(0, 0, -Inf, -Inf), upper = c(1, 1, Inf, Inf))
+optim_007_pas4 <- optim(data = filter(df_007, pas == 4), fn = RSS, par = par, method = 'L-BFGS-B', lower = c(0, 0, -Inf, -Inf), upper = c(1, 1, Inf, Inf))
 ```
 
 Argument for par = (0.5, 0.8, 1, 1):
-I thought that the lowest accuracy-level (a) should be 50% since this is chance level. The most likely 'best accuracy' (b) is maybe 0.8, 80% seems accuracy reasonable. 
+I thought that the lowest accuracy-level (a) should be 50% since this is chance level. The best accuracy must be 100%, hence setting b = 1. 
 Since the function is sigmoid, the lower bound (lower =) is set to 0 and upper (upper =) to 1.
 
 Results: We got the following suggestions for the estimated parameters.
@@ -348,19 +345,29 @@ The steepness at the inflexion point is d = 0.63 #you said we should make the lo
     ii. Plot the fits for the PAS ratings on a single plot (for subject 7) `xlim=c(0, 8)`
 
 
-
 ```{r, message=FALSE}
-# Using the estimated parameters suggested by the optim-function in the sigmoid-function for participant 007
-sigmoid_function_007 <- function(x) {
-  optim_007$par[1] + ((optim_007$par[2]-optim_007$par[1])/(1+exp(1)^((optim_007$par[3]-x)/optim_007$par[4])))}
+# defining sigmoid function
+sigmoid_function <- function(optim, x) {
+  optim$par[1] + ((optim$par[2]-optim$par[1])/(1+exp(1)^((optim$par[3]-x)/optim$par[4])))}
 
-ggplot() +
-  geom_point(aes(x = c(0:6), y = sigmoid_function_007(0:6))) +
-  geom_smooth(aes(x = c(0:6), y = sigmoid_function_007(0:6)), se = FALSE) + 
-  labs(title = "Estimated fits for PAS ratings",
+
+# adding y_hats to dataframe
+df_007$y_hat_pas1 <- sigmoid_function(optim_007_pas1,df_007$x)
+df_007$y_hat_pas2 <- sigmoid_function(optim_007_pas2,df_007$x)
+df_007$y_hat_pas3 <- sigmoid_function(optim_007_pas3,df_007$x)
+df_007$y_hat_pas4 <- sigmoid_function(optim_007_pas4,df_007$x)
+
+# plotting 
+df_007 %>% 
+  ggplot() + 
+  geom_smooth(aes(x = x, y = y_hat_pas1, color = "pas1")) + 
+  geom_smooth(aes(x = x, y = y_hat_pas2, color = "pas2")) + 
+  geom_smooth(aes(x = x, y = y_hat_pas3, color = "pas3")) + 
+  geom_smooth(aes(x = x, y = y_hat_pas4, color = "pas4")) +
+  labs(title = "Estimated fits for accuracy ratings pr. PAS for subject 7",
        x = "Target.Frames",
-       y = "Estimated PAS ratings using sigmoid-function") +
-  theme_bw()
+       y = "Estimated accuracy ratings using sigmoid-function") +
+  theme_bw() 
 ```
 
 
@@ -368,19 +375,61 @@ ggplot() +
     iii. Create a similar plot for the PAS ratings on a single plot (for subject 7), but this time based on the model from 6.1 `xlim=c(0, 8)`   
 
 ```{r}
-# the model from 6.1: m_target.pas.interact = correct ~ target.frames * pas + (target.frames | subject)
+# the model from 6.1: m_target.pas.interact <- glmer(correct ~ target.frames * pas + (target.frames|subject), family = binomial, data = df)
 
 
+# having fitted values only for subject 007
+df_007_estimates <-  df
+df_007_estimates$fitted <- fitted(m_target.pas.interact)
+df_007_estimates <- df_007_estimates %>% 
+  filter(subject == "007")
+
+# plotting fitted values for subject 007
+df_007_estimates %>% 
+  ggplot() + 
+  geom_point(aes(x = target.frames, y = fitted, color = pas))+
+  facet_wrap( ~ pas) +
+  labs(title = "Estimated accurary from interaction-model (for subject 7)") +
+  labs(x = "Target duration (target.frames)", y = "Estimated Accuracy") + 
+  theme_bw()
 ```
 
 
 
     iv. Comment on the differences between the fits - mention some advantages and disadvantages of each way  
 
-
-
+A crucial difference: the fitted values using the "by-hand-function" is only based on data from subject 007, whereas the fitted values 
 
 
 2) Finally, estimate the parameters for all subjects and each of their four PAS ratings. Then plot the estimated function at the group-level by taking the mean for each of the four parameters, _a_, _b_, _c_ and _d_ across subjects. A function should be estimated for each PAS-rating (it should look somewhat similar to Fig. 3 from the article:  https://doi.org/10.1016/j.concog.2019.03.007)
     i. compare with the figure you made in 5.3.ii and comment on the differences between the fits - mention some advantages and disadvantages of both.
+
+```{r}
+# now we do exactly the same but for all subjects
+
+# rename target.frames as x and correct as y
+df <- df %>% 
+  mutate(x = target.frames, y = correct)
+
+# finding optimal parameters using optim-function
+optim_all <- optim(data = df, fn = RSS, par = par, method = 'L-BFGS-B', lower = c(0, 0, -Inf, -Inf), upper = c(1, 1, Inf, Inf))
+optim_all
+
+# using these suggested parameters in the sigmoid function
+sigmoid_function <- function(x) {
+  optim_all$par[1] + ((optim_all$par[2]-optim_all$par[1])/(1+exp(1)^((optim_all$par[3]-x)/optim_all$par[4])))}
+
+# adding the y_hats to the data-frame
+df$y_hat <- sigmoid_function(df$x)
+
+# plotting the y_hat
+df %>% 
+  ggplot() + 
+   geom_point(aes(x = x, y = y_hat)) +
+   facet_wrap(~pas)
+```
+
+
+
+
     
