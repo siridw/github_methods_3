@@ -318,3 +318,4 @@ but also new warnings like:
 Warning:
 In checkConv(attr(opt, "derivs"), opt\$par, ctrl = control$checkConv,  :
   Model failed to converge with max|grad| = 0.0121962 (tol = 0.002, component 1)
+  

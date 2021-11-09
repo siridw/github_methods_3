@@ -184,15 +184,27 @@ $bias(\hat{f}(x_0)) = E[\hat{f}(x_0)] - f(x_0)$
     i. generate data, $y_{true}$, based on an input range of [0, 6] with a spacing of 0.1. Call this $x$
 
 ```{python}
-true_function <- function(x) {
-  y = x^2
-  return(y)
-}
-
-x <- seq(0,6,0.1)
-np.random.seed(7)
-y_noise <- rnorm(x, sd = 5)
+import numpy as np
+import matplotlib.pyplot as plt
+import seaborn as sns
 ```
+
+
+```{python}
+np.random.seed(7)
+
+def true_function(x):
+  return x**2
+
+x = np.arange(0, 6, step = 0.1)
+noise = np.random.normal(loc=0.0, scale=5.0, size=None)
+y_noise = true_function(x) + noise
+y_true = true_function(x)
+
+seaborn.set_style("whitegrid")
+
+```
+
 
 
     ii. add normally distributed noise to $y_{true}$ with $\sigma=5$ (set a seed to 7 `np.random.seed(7)`) and call it $y_{noise}$
